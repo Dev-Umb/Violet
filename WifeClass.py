@@ -4,9 +4,15 @@ import sched
 import threading
 import time
 
+import chardet
+import nonebot
 import requests
 from zhon.hanzi import punctuation
 from awesome.plugins.NewWife.random_config_index import *
+
+GOD = 1149558764
+LoveTalkList = list()
+YanDereList = list()
 
 
 # 老公类，用于绑定用户账号和计算渣男值
@@ -31,17 +37,22 @@ def WifeHair(HairColor: str, HairShape) -> str:
     return HairColor + HairShape
 
 
-def getScence() -> str:
-    try:
-        url = "https://chp.shadiao.app/api.php"
-        data = requests.get(url, timeout=3).text
-        with open('love.txt', 'a', encoding='gbk') as f:
-            unicodes = data.encode('gbk').decode('gbk')
-            f.write(str(unicodes + '\n'))
-            f.close()
-    except:
-        data = linecache.getline(r'love.txt', random.randrange(0, len(open('love.txt', 'gbk').readlines())))
-    return data
+@nonebot.scheduler.scheduled_job(
+    'cron',
+    second=6
+)
+def getLoveTalk():
+    threading.Thread(target=_getLove()).start()
+
+
+def _getLove():
+    url = "https://chp.shadiao.app/api.php"
+    data = str(requests.get(url, timeout=3).text).encode('gbk').decode('gbk')
+    if data in LoveTalkList: return
+    with open('love.txt', 'a') as f:
+        f.write(data + '\n')
+        f.close()
+    LoveTalkList.append(data)
 
 
 # 老婆生成类
@@ -97,9 +108,15 @@ class WifeObj:
 
     def setNickName(self, NickName: str, isWife: bool):
         NickName = deletePunctuation(NickName)
-        if len(NickName) < 1: return '?'
-        if random.randint(0, self.liking) < 30 or not is_rightful(NickName) or len(NickName) >= 10:
-            return '好难念的名字，我不要'
+        if NickName in BanTalkMember:
+            self.liking -= 2
+            return '滚'
+        if NickName in self.banNickName:
+            return '我都说了我不要这个名字'
+        if len(NickName) <= 1: return '?'
+        if random.randint(0, self.liking) < 30 or not is_rightful(NickName) or len(NickName) >= 6:
+            self.banNickName.append(NickName)
+            return '好难听的名字，我不要'
         if isWife:
             self.WifeNickName = NickName
             return f'好'
@@ -108,12 +125,11 @@ class WifeObj:
             return f'好的{self.HusbandNickName}'
 
     def __init__(self, thisHusband: husband):
-        self.husband = thisHusband # 绑定husband对象
+        self.husband = thisHusband  # 绑定husband对象
         self.WifeNickName = '老婆'  # 你叫女朋友为‘老婆’
         self.HusbandNickName = "老公"  # 女朋友叫你,默认为老公
-
         self.eyesColor = Color[Random(Color)]  # 瞳色
-
+        self.banNickName = list()
         self.work = work[Random(work)]  # 老婆的职业
 
         self.Hair = Color[Random(Color)] + Hair[Random(Hair)]  # 发型样式
@@ -143,6 +159,7 @@ class WifeObj:
         self.scence = None
 
         self.isMaxTalkNum = False
+
     # 最后把生成的对象添加到字典中
     def addInWifeDict(self):
         WifeDict[self.name] = self
@@ -155,23 +172,23 @@ class WifeObj:
             self.liking -= 2 if self.liking > -100 else WifeDict.pop(self)
             if self.liking <= -100: return '你真的很烦，再见!'
             return '你烦不烦，做你自己的事情去'
-        data = getScence() if self.scence is None else self.scence
-        self.scence = getScence()
+        data = getScence(self) if self.scence is None else self.scence
+        self.scence = getScence(self)
         self.isMaxTalkNum = True
         threading.Thread(target=self.Delay).start()
-        return data.replace('你',self.HusbandNickName)
+        return data.replace('你', self.HusbandNickName)
 
     def BanUser(self):
         self.isMaxTalkNum = False
 
     def Delay(self):  # 限制访问频率
         s = sched.scheduler(time.time, time.sleep)
-        s.enter(20, 1, self.BanUser)
+        s.enter(10, 1, self.BanUser)
         s.run()
 
-    def couples(self)->str:
+    def couples(self) -> str:
         WifeDict.pop(self.name)
-        return '分手成功'
+        return f'{self.name}:{Couples[self.Character]}'
 
     def WifeIndex(self) -> str:
         return f'{self.name}\n' \
@@ -188,3 +205,10 @@ class WifeObj:
 
 
 WifeDict = dict()
+
+
+def getScence(self: WifeObj) -> str:
+    if self.Character == '病娇':
+        return YanDereList[random.randint(0, len(YanDereList) - 1)].replace('\n', '')
+    data = LoveTalkList[random.randint(0, len(LoveTalkList) - 1)]
+    return data.replace('\n', '')

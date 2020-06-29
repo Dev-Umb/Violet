@@ -26,37 +26,66 @@ async def WriteToWifesIndex():
 
 
 def Read():
-    with open('index.json', 'r+', encoding='utf-8') as f:
-        line = f.readline()
-        while line:
-            line = str(line).replace('[', '').replace(',\n', '').replace(']', '')
-            t = json.loads(line)
-            user_id = husband(t['husband'])
-            temp_wife = WifeObj(user_id)
-            temp_wife.height = t['height']
-            temp_wife.weight = t['weight']
-            temp_wife.name = t['name']
-            temp_wife.ouBai = t['ouBai']
-            temp_wife.liking = t['liking']
-            temp_wife.Character = t['character']
-            temp_wife.age = t['age']
-            temp_wife.isMerry = t['isMerry']
-            temp_wife.work = t['work']
-            temp_wife.race = t['race']
-            temp_wife.bud = t['bud']
-            try:
-                temp_wife.Hair = t['hair']
-                temp_wife.eyesColor = t['eyesColor']
-                temp_wife.WifeNickName = t['WifeNickName']
-                temp_wife.HusbandNickName = t['HusbandNickName']
-            except:
-                pass
-            temp_wife.addInWifeDict()
+    try:
+        with open('index.json', 'r+', encoding='utf-8') as f:
             line = f.readline()
-        f.close()
+            while line:
+                line = str(line).replace('[', '').replace(',\n', '').replace(']', '')
+                t = json.loads(line)
+                user_id = husband(t['husband'])
+                temp_wife = WifeObj(user_id)
+                temp_wife.height = t['height']
+                temp_wife.weight = t['weight']
+                temp_wife.name = t['name']
+                temp_wife.ouBai = t['ouBai']
+                temp_wife.liking = t['liking']
+                temp_wife.Character = t['character']
+                temp_wife.age = t['age']
+                temp_wife.isMerry = t['isMerry']
+                temp_wife.work = t['work']
+                temp_wife.race = t['race']
+                temp_wife.bud = t['bud']
+                try:
+                    temp_wife.Hair = t['hair']
+                    temp_wife.eyesColor = t['eyesColor']
+                    temp_wife.WifeNickName = t['WifeNickName'] if not t['WifeNickName'] in BanTalkMember else '老婆'
+                    temp_wife.HusbandNickName = t['HusbandNickName'] if not t[
+                                                                                'HusbandNickName'] in BanTalkMember else '老公'
+                except:
+                    pass
+                temp_wife.addInWifeDict()
+                line = f.readline()
+            f.close()
+    except:
+        with open('index.json', 'a+', encoding='utf-8') as f:
+            f.close()
 
+
+
+def ReadLove():
+    try:
+        f = open('love.txt', 'r')
+        a = f.readline()
+        while a:
+            if not a in LoveTalkList:
+                LoveTalkList.append(a)
+            a = f.readline()
+    except:
+        f = open('love.txt', 'w+')
+        f.close()
+    try:
+        f = open('yandere.txt', 'r',encoding='utf-8')
+        a = f.readline().encode('utf-8').decode('utf-8')
+        while a:
+            if not a in YanDereList:
+                YanDereList.append(a)
+            a = f.readline()
+    except:
+         f = open('love.txt', 'w+')
+         f.close()
 
 @on_startup(func=Read)
+@on_startup(func=ReadLove)
 @on_command('getLove', only_to_me=True, aliases=('求分配女朋友'))
 async def getGirlFirend(session: CommandSession):
     try:
@@ -126,6 +155,17 @@ async def HusbandCallToWife(session: CommandSession):
         await session.send(UserWife.setNickName(masg, isWife=True))
     except:
         return
+
+
+@on_command('BanNickName', only_to_me=True, aliases='添加违禁词')
+async def HusbandCallToWife(session: CommandSession):
+    if session.event['user_id'] == GOD:
+        masg = session.current_arg_text
+        try:
+            BanTalkMember.append(masg)
+            await session.send(f'添加{masg}成功')
+        except:
+            return
 
 
 @on_command('getWifeIndex', only_to_me=False, aliases='查询女朋友的信息')
